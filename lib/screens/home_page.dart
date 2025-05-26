@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:topview/providers/portfolio_provider.dart';
 import 'package:topview/screens/holdings_page.dart';
 import 'package:topview/screens/input_page.dart';
-import 'package:topview/screens/transactions_page.dart';
+import 'package:topview/screens/enhanced_transactions_page.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:intl/intl.dart';
 
@@ -62,13 +63,20 @@ class _HomePageState extends State<HomePage> {
       debugPrint('Error requesting permissions: $e');
     }
   }
-
   @override
   Widget build(BuildContext context) {
+    final isDark = AdaptiveTheme.of(context).mode == AdaptiveThemeMode.dark;
+    
     return Scaffold(
       appBar: AppBar(
         title: const Text('TopView Portfolio'),
         actions: [
+          IconButton(
+            icon: Icon(isDark ? Icons.light_mode : Icons.dark_mode),
+            onPressed: () {
+              AdaptiveTheme.of(context).toggleThemeMode();
+            },
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
@@ -127,12 +135,16 @@ class _HomePageState extends State<HomePage> {
                     ),
                   );
                 }
-                
-                return SingleChildScrollView(
+                  return SingleChildScrollView(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Last Transaction Insight Banner
+                      _buildLastTransactionBanner(provider),
+                      
+                      const SizedBox(height: 16),
+                      
                       // Client ID Section
                       Card(
                         child: Padding(
@@ -316,11 +328,10 @@ class _HomePageState extends State<HomePage> {
                                 Align(
                                   alignment: Alignment.center,
                                   child: TextButton(
-                                    onPressed: () {
-                                      Navigator.push(
+                                    onPressed: () {                                      Navigator.push(
                                         context,
                                         MaterialPageRoute(
-                                          builder: (context) => const TransactionsPage(),
+                                          builder: (context) => const EnhancedTransactionsPage(),
                                         ),
                                       );
                                     },
@@ -428,5 +439,79 @@ class _HomePageState extends State<HomePage> {
       total += holding.currentValue;
     }
     return total;
+  }
+
+  Widget _buildLastTransactionBanner(PortfolioProvider provider) {
+    final theme = Theme.of(context);
+    final insightMessage = provider.getLastTransactionInsight();
+    final hasTransaction = provider.lastTransaction != null;
+    
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: hasTransaction
+              ? [theme.colorScheme.primary.withOpacity(0.1), theme.colorScheme.secondary.withOpacity(0.1)]
+              : [Colors.grey.withOpacity(0.1), Colors.grey.withOpacity(0.05)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: hasTransaction
+              ? theme.colorScheme.primary.withOpacity(0.3)
+              : Colors.grey.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: hasTransaction
+                  ? theme.colorScheme.primary.withOpacity(0.2)
+                  : Colors.grey.withOpacity(0.2),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              hasTransaction ? Icons.timeline : Icons.info_outline,
+              color: hasTransaction
+                  ? theme.colorScheme.primary
+                  : Colors.grey[600],
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Last Activity',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w600,
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  insightMessage,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (hasTransaction)
+            Icon(
+              Icons.chevron_right,
+              color: theme.colorScheme.primary,
+            ),
+        ],
+      ),
+    );
   }
 }

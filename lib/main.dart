@@ -1,32 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:topview/providers/portfolio_provider.dart';
 import 'package:topview/screens/home_page.dart';
-import 'package:topview/services/sms_service.dart';
-import 'package:permission_handler/permission_handler.dart';
+import 'package:topview/themes/app_theme.dart';
+import 'package:topview/services/database_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Don't request permissions here yet, just ensure plugins are initialized
-  runApp(const MyApp());
+  // Initialize database
+  await DatabaseService.database;
+  
+  // Get saved theme mode
+  final savedThemeMode = await AdaptiveTheme.getThemeMode();
+  
+  runApp(MyApp(savedThemeMode: savedThemeMode));
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final AdaptiveThemeMode? savedThemeMode;
+  
+  const MyApp({super.key, this.savedThemeMode});
 
   @override
   Widget build(BuildContext context) {
     return ChangeNotifierProvider(
       create: (context) => PortfolioProvider(),
-      child: MaterialApp(
-        title: 'TopView Portfolio Tracker',
-        theme: ThemeData(
-          primarySwatch: Colors.blue,
-          useMaterial3: true,
+      child: AdaptiveTheme(
+        light: AppTheme.lightTheme,
+        dark: AppTheme.darkTheme,
+        initial: savedThemeMode ?? AdaptiveThemeMode.light,
+        builder: (theme, darkTheme) => MaterialApp(
+          title: 'TopView Portfolio Tracker',
+          theme: theme,
+          darkTheme: darkTheme,
+          home: const HomePage(),
+          debugShowCheckedModeBanner: false,
         ),
-        home: const HomePage(),
-        debugShowCheckedModeBanner: false,
       ),
     );
   }
