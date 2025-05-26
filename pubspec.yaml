@@ -18,6 +18,7 @@ dependencies:
   sqflite: ^2.3.0
   google_fonts: ^6.1.0
   adaptive_theme: ^3.4.1
+  path: ^1.8.3
 
 dev_dependencies:
   flutter_test:

@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
-import '../models/transaction.dart';
 
 class DatabaseService {
   static Database? _database;

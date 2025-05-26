@@ -60,10 +60,9 @@ class MessageParser {
           ));
         }
       }
-      
-      return transactions;
+        return transactions;
     } catch (e) {
-      print('Error parsing message: $e');
+      // Error parsing message - return empty list
       return [];
     }
   }

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:adaptive_theme/adaptive_theme.dart';
 import 'package:topview/providers/portfolio_provider.dart';
-import 'package:topview/screens/home_page.dart';
+import 'package:topview/screens/main_navigation.dart';
 import 'package:topview/themes/app_theme.dart';
 import 'package:topview/services/database_service.dart';
 
@@ -24,9 +24,8 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key, this.savedThemeMode});
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (context) => PortfolioProvider(),
+  Widget build(BuildContext context) {    return ChangeNotifierProvider(
+      create: (context) => PortfolioProvider()..initialize(), // Auto-initialize
       child: AdaptiveTheme(
         light: AppTheme.lightTheme,
         dark: AppTheme.darkTheme,
@@ -35,7 +34,7 @@ class MyApp extends StatelessWidget {
           title: 'TopView Portfolio Tracker',
           theme: theme,
           darkTheme: darkTheme,
-          home: const HomePage(),
+          home: const MainNavigation(),
           debugShowCheckedModeBanner: false,
         ),
       ),

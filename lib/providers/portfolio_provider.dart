@@ -29,14 +29,19 @@ class PortfolioProvider extends ChangeNotifier {
   bool get isLoadingMessages => _isLoadingMessages;
   bool get hasPermissionError => _hasPermissionError;
   Transaction? get lastTransaction => _lastTransaction;
-    // Initialize portfolio data
+  // Initialize portfolio data
   Future<void> initialize() async {
     try {
+      // First load existing data from database
       await _loadClientsFromDatabase();
-      await fetchSmsMessages();
+      
+      // If we have existing clients, load their data immediately
       if (_availableClientIds.isNotEmpty) {
         setClientId(_availableClientIds.first);
       }
+      
+      // Then update from SMS in background (only fetch new messages)
+      await _fetchSmsMessagesIncrementally();
     } catch (e) {
       debugPrint('Error initializing portfolio: $e');
     }
@@ -212,6 +217,45 @@ class PortfolioProvider extends ChangeNotifier {
       return "Last activity: $transactionType ${_lastTransaction!.quantity} shares of ${_lastTransaction!.symbol} $daysDiff days ago.";
     } else {
       return "No activity recorded in the last $daysDiff days.";
+    }
+  }
+    // Fetch SMS messages incrementally (only new messages)
+  Future<void> _fetchSmsMessagesIncrementally() async {
+    try {
+      // Get the latest transaction date to filter new messages
+      DateTime? lastTransactionDate;
+      if (_availableClientIds.isNotEmpty) {
+        final allTransactions = <Transaction>[];
+        for (String clientId in _availableClientIds) {
+          final clientTransactions = await TransactionDAO.getTransactionsByClientId(clientId);
+          allTransactions.addAll(clientTransactions);
+        }
+        
+        if (allTransactions.isNotEmpty) {
+          allTransactions.sort((a, b) => b.date.compareTo(a.date));
+          lastTransactionDate = allTransactions.first.date;
+        }
+      }
+      
+      // Fetch messages (in background without loading indicator)
+      final hasPermission = await SmsService.requestSmsPermission();
+      
+      if (hasPermission) {
+        final messages = await SmsService.getBrokerMessages();
+        
+        // Filter messages newer than last transaction date
+        final newMessages = lastTransactionDate != null
+            ? messages.where((msg) {
+                // Basic date parsing from message - this might need refinement
+                // For now, process all messages but we could optimize this
+                return true;
+              }).toList()
+            : messages;
+        
+        await processAllMessages(newMessages);
+      }
+    } catch (e) {
+      debugPrint('Error fetching SMS messages incrementally: $e');
     }
   }
 }

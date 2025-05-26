@@ -16,11 +16,9 @@ class PortfolioService {
     
     // Calculate holdings for each symbol
     List<Holding> holdings = [];
-    
-    groupedBySymbol.forEach((symbol, transactions) {
+      groupedBySymbol.forEach((symbol, transactions) {
       int totalQuantity = 0;
       double totalValue = 0;
-      double totalSoldValue = 0;
       int totalSoldQuantity = 0;
       
       for (var transaction in transactions) {
@@ -30,21 +28,19 @@ class PortfolioService {
         } else if (transaction.transactionType == 'Sold') {
           totalQuantity -= transaction.quantity;
           totalSoldQuantity += transaction.quantity;
-          totalSoldValue += transaction.quantity * transaction.price;
         }
       }
-      
-      // Only include if we still have shares
+        // Only include if we still have shares
       if (totalQuantity > 0) {
-        final averageBuyPrice = totalValue / (totalQuantity + totalSoldQuantity);
-        final currentValue = totalQuantity * averageBuyPrice; // Using avg price as current price for now
+        final averageBuyPrice = double.parse((totalValue / (totalQuantity + totalSoldQuantity)).toStringAsFixed(2));
+        final currentValue = double.parse((totalQuantity * averageBuyPrice).toStringAsFixed(2)); // Using avg price as current price for now
         
         holdings.add(Holding(
           symbol: symbol,
           quantity: totalQuantity,
           averageBuyPrice: averageBuyPrice,
           currentValue: currentValue,
-          investedValue: totalQuantity * averageBuyPrice,
+          investedValue: double.parse((totalQuantity * averageBuyPrice).toStringAsFixed(2)),
         ));
       }
     });
@@ -85,8 +81,7 @@ class PortfolioService {
             var oldestBuy = buys.first;
             int buyQuantityToUse = oldestBuy.quantity < remainingSellQuantity ? 
                 oldestBuy.quantity : remainingSellQuantity;
-                
-            // Calculate profit/loss for this portion
+                  // Calculate profit/loss for this portion
             double buyValue = buyQuantityToUse * oldestBuy.price;
             double sellValue = buyQuantityToUse * transaction.price;
             realizedPL += (sellValue - buyValue);
@@ -110,10 +105,9 @@ class PortfolioService {
             }
           }
         }
-      }
-    });
+      }    });
     
-    return realizedPL;
+    return double.parse(realizedPL.toStringAsFixed(2));
   }
   
   // Calculate break-even portfolio value
@@ -123,19 +117,12 @@ class PortfolioService {
     // Sum the total amount invested across all purchases
     for (var transaction in transactions) {
       if (transaction.transactionType == 'Purchased') {
-        totalInvested += transaction.quantity * transaction.price;
-      } else if (transaction.transactionType == 'Sold') {
+        totalInvested += transaction.quantity * transaction.price;      } else if (transaction.transactionType == 'Sold') {
         totalInvested -= transaction.quantity * transaction.price;
       }
     }
     
-    // Calculate the total current value of holdings
-    double currentPortfolioValue = 0;
-    for (var holding in holdings) {
-      currentPortfolioValue += holding.currentValue;
-    }
-    
     // The break-even value is what the portfolio must reach to recover the investment
-    return totalInvested;
+    return double.parse(totalInvested.toStringAsFixed(2));
   }
 }

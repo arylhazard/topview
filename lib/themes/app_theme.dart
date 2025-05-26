@@ -16,17 +16,14 @@ class AppTheme {
     brightness: Brightness.light,
     primarySwatch: Colors.blue,
     primaryColor: primaryBlue,
-    scaffoldBackgroundColor: const Color(0xFFF8F9FA),
-    colorScheme: const ColorScheme.light(
+    scaffoldBackgroundColor: const Color(0xFFF8F9FA),    colorScheme: const ColorScheme.light(
       primary: primaryBlue,
       secondary: accentBlue,
       surface: Colors.white,
-      background: Color(0xFFF8F9FA),
       error: errorRed,
       onPrimary: Colors.white,
       onSecondary: Colors.white,
       onSurface: Color(0xFF212529),
-      onBackground: Color(0xFF212529),
       onError: Colors.white,
     ),
     textTheme: GoogleFonts.interTextTheme().copyWith(
@@ -149,17 +146,14 @@ class AppTheme {
     brightness: Brightness.dark,
     primarySwatch: Colors.blue,
     primaryColor: primaryBlueLight,
-    scaffoldBackgroundColor: const Color(0xFF121212),
-    colorScheme: const ColorScheme.dark(
+    scaffoldBackgroundColor: const Color(0xFF121212),    colorScheme: const ColorScheme.dark(
       primary: primaryBlueLight,
       secondary: accentBlue,
       surface: Color(0xFF1E1E1E),
-      background: Color(0xFF121212),
       error: errorRed,
       onPrimary: Color(0xFF121212),
       onSecondary: Colors.white,
       onSurface: Color(0xFFE0E0E0),
-      onBackground: Color(0xFFE0E0E0),
       onError: Colors.white,
     ),
     textTheme: GoogleFonts.interTextTheme(ThemeData.dark().textTheme).copyWith(
