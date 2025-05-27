@@ -1,50 +1,76 @@
 import 'package:topview/models/holding.dart';
 import 'package:topview/models/transaction.dart';
+import 'package:topview/models/share_data.dart'; // Import ShareData
 
 class PortfolioService {
   // Calculate current holdings based on transactions
-  static List<Holding> calculateHoldings(List<Transaction> transactions) {
-    // Group transactions by symbol
+  static List<Holding> calculateHoldings(
+    List<Transaction> transactions, 
+    Map<String, ShareData> liveShareData, // Add live share data as a parameter
+  ) {
     final Map<String, List<Transaction>> groupedBySymbol = {};
-    
     for (var transaction in transactions) {
       if (!groupedBySymbol.containsKey(transaction.symbol)) {
         groupedBySymbol[transaction.symbol] = [];
       }
       groupedBySymbol[transaction.symbol]!.add(transaction);
     }
-    
-    // Calculate holdings for each symbol
+
     List<Holding> holdings = [];
-      groupedBySymbol.forEach((symbol, transactions) {
-      int totalQuantity = 0;
-      double totalValue = 0;
-      int totalSoldQuantity = 0;
-      
-      for (var transaction in transactions) {
-        if (transaction.transactionType == 'Purchased') {
-          totalQuantity += transaction.quantity;
-          totalValue += transaction.quantity * transaction.price;
-        } else if (transaction.transactionType == 'Sold') {
-          totalQuantity -= transaction.quantity;
-          totalSoldQuantity += transaction.quantity;
-        }
+    groupedBySymbol.forEach((symbol, transactions) {
+      // int totalSoldQuantity = 0; // Not directly needed for average buy price of current holdings
+
+      // Calculate total quantity and total cost for BUY transactions only for current holdings
+      // Sell transactions are handled by realized P/L
+      List<Transaction> buyTransactions = transactions.where((t) => t.transactionType == 'Purchased').toList();
+      List<Transaction> sellTransactions = transactions.where((t) => t.transactionType == 'Sold').toList();
+
+      double averageBuyPrice = 0;
+
+      int cumulatedBuyQuantity = 0;
+      double cumulatedBuyCost = 0;
+      for (var buyTx in buyTransactions) {
+        cumulatedBuyQuantity += buyTx.quantity;
+        cumulatedBuyCost += buyTx.quantity * buyTx.price;
       }
-        // Only include if we still have shares
+
+      int cumulatedSellQuantity = 0;
+      for (var sellTx in sellTransactions) {
+        cumulatedSellQuantity += sellTx.quantity;
+      }
+
+      int totalQuantity = cumulatedBuyQuantity - cumulatedSellQuantity;
+
       if (totalQuantity > 0) {
-        final averageBuyPrice = double.parse((totalValue / (totalQuantity + totalSoldQuantity)).toStringAsFixed(2));
-        final currentValue = double.parse((totalQuantity * averageBuyPrice).toStringAsFixed(2)); // Using avg price as current price for now
+        if (cumulatedBuyQuantity > 0) {
+          averageBuyPrice = cumulatedBuyCost / cumulatedBuyQuantity;
+        }
         
+        double currentInvestedValue = totalQuantity * averageBuyPrice;
+
+        ShareData? currentShareInfo = liveShareData[symbol];
+        // Use the new ltpNumeric getter from ShareData
+        double ltp = currentShareInfo?.ltpNumeric ?? averageBuyPrice; // Use averageBuyPrice if LTP is not available
+        String? percentChange = currentShareInfo?.percentChange;
+
+        double currentValue = totalQuantity * ltp;
+        double unrealizedPL = currentValue - currentInvestedValue;
+        double unrealizedPLPercentage = (currentInvestedValue != 0 && currentInvestedValue.abs() > 0.001) ? (unrealizedPL / currentInvestedValue) * 100 : 0;
+
         holdings.add(Holding(
           symbol: symbol,
           quantity: totalQuantity,
           averageBuyPrice: averageBuyPrice,
+          investedValue: currentInvestedValue,
+          ltp: ltp,
+          percentChange: percentChange,
           currentValue: currentValue,
-          investedValue: double.parse((totalQuantity * averageBuyPrice).toStringAsFixed(2)),
+          unrealizedPL: unrealizedPL,
+          unrealizedPLPercentage: unrealizedPLPercentage,
         ));
       }
     });
-    
+
     return holdings;
   }
   

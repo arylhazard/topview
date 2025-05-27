@@ -27,7 +27,8 @@ The app can parse SMS messages from various brokers that follow standard formats
 
 ## Limitations
 
--No info about current market value of scrips
+-No info about current market value of scrips (Implemented partially)
 -No info about stock divident and adjustments
+-No info about IPOS and Right shares too
 -Broker commissions aren't taken into consideration
 -Incomplete design and development atp

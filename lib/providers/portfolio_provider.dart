@@ -8,6 +8,9 @@ import 'package:topview/services/sms_service.dart';
 import 'package:topview/services/client_dao.dart';
 import 'package:topview/utils/message_parser.dart';
 import '../services/transaction_dao_new.dart';
+import '../models/share_data.dart'; // Import ShareData
+import '../services/share_scraping_service.dart'; // Import ShareScrapingService
+import '../services/database_service.dart'; // Import DatabaseService for share data
 
 class PortfolioProvider extends ChangeNotifier {
   List<Transaction> _transactions = [];
@@ -19,7 +22,13 @@ class PortfolioProvider extends ChangeNotifier {
   bool _isLoadingMessages = false;
   bool _hasPermissionError = false;
   Transaction? _lastTransaction;
-  
+
+  Map<String, ShareData> _liveShareDataMap = {}; // To store live share data
+  final ShareScrapingService _shareScrapingService = ShareScrapingService(); // Instance of scraping service
+  bool _isShareDataLoading = false;
+  String? _shareDataError;
+  String? _shareDataDate;
+
   List<Transaction> get transactions => _transactions;
   List<Holding> get holdings => _holdings;
   double get realizedProfitLoss => _realizedProfitLoss;
@@ -29,18 +38,21 @@ class PortfolioProvider extends ChangeNotifier {
   bool get isLoadingMessages => _isLoadingMessages;
   bool get hasPermissionError => _hasPermissionError;
   Transaction? get lastTransaction => _lastTransaction;
+  Map<String, ShareData> get liveShareDataMap => _liveShareDataMap;
+  bool get isShareDataLoading => _isShareDataLoading;
+  String? get shareDataError => _shareDataError;
+  String? get shareDataDate => _shareDataDate;
+
   // Initialize portfolio data
   Future<void> initialize() async {
     try {
-      // First load existing data from database
       await _loadClientsFromDatabase();
-      
-      // If we have existing clients, load their data immediately
       if (_availableClientIds.isNotEmpty) {
         setClientId(_availableClientIds.first);
+      } else {
+        // If no clients, still try to fetch share data for general use if needed elsewhere
+        await fetchLiveShareData(); 
       }
-      
-      // Then update from SMS in background (only fetch new messages)
       await _fetchSmsMessagesIncrementally();
     } catch (e) {
       debugPrint('Error initializing portfolio: $e');
@@ -100,15 +112,19 @@ class PortfolioProvider extends ChangeNotifier {
     // Set active client ID
   void setClientId(String clientId) {
     _currentClientId = clientId;
-    loadTransactions();
+    loadTransactions(); // This will also trigger fetchLiveShareData if needed or use existing
   }
 
   // Load transactions for current client ID
   Future<void> loadTransactions() async {
-    if (_currentClientId.isEmpty) return;    try {
+    if (_currentClientId.isEmpty) return;
+    try {
       _transactions = await TransactionDAO.getTransactionsByClientId(_currentClientId);
       _lastTransaction = await TransactionDAO.getLatestTransaction(_currentClientId);
-      _calculatePortfolioMetrics();
+      // Fetch live share data before calculating metrics
+      // This ensures metrics are calculated with the latest available prices
+      await fetchLiveShareData(); 
+      _calculatePortfolioMetrics(); // This will now use _liveShareDataMap
       notifyListeners();
     } catch (e) {
       debugPrint('Error loading transactions: $e');
@@ -162,11 +178,57 @@ class PortfolioProvider extends ChangeNotifier {
     return false;
   }
   
+  // Fetch live share data
+  Future<void> fetchLiveShareData({bool forceScrape = false}) async {
+    _isShareDataLoading = true;
+    _shareDataError = null;
+    notifyListeners();
+
+    try {
+      // Use the correctly named method: fetchAndProcessData
+      final result = await _shareScrapingService.fetchAndProcessData(forceScrape: forceScrape);
+      
+      List<ShareData> scrapedData = result['data'] as List<ShareData>;
+      _shareDataDate = result['date'] as String?;
+      _shareDataError = result['error'] as String?;
+
+      _liveShareDataMap = {for (var item in scrapedData) item.symbol: item};
+      
+      if (_transactions.isNotEmpty) {
+        _calculatePortfolioMetrics();
+      }
+
+    } catch (e) {
+      _shareDataError = 'Failed to fetch share data: ${e.toString()}';
+      debugPrint('PortfolioProvider: $_shareDataError');
+    } finally {
+      _isShareDataLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Method to be called by the settings page button
+  Future<void> forceRefreshShareData() async {
+    // Set loading and error states appropriately for UI feedback
+    _isShareDataLoading = true;
+    _shareDataError = null;
+    notifyListeners();
+
+    // Call fetchLiveShareData with forceScrape = true
+    await fetchLiveShareData(forceScrape: true);
+
+    // No need to set _isShareDataLoading to false here as fetchLiveShareData handles it in its finally block.
+    // notifyListeners() is also called by fetchLiveShareData.
+  }
+
   // Calculate all portfolio metrics
   void _calculatePortfolioMetrics() {
-    _holdings = PortfolioService.calculateHoldings(_transactions);
+    // Pass the live share data to calculateHoldings
+    _holdings = PortfolioService.calculateHoldings(_transactions, _liveShareDataMap);
     _realizedProfitLoss = PortfolioService.calculateRealizedProfitLoss(_transactions);
     _breakEvenValue = PortfolioService.calculateBreakEvenValue(_transactions, _holdings);
+    // Any other metrics that depend on holdings or live data should be recalculated here
+    notifyListeners(); // Notify listeners after all metrics are updated
   }
     // Clear all data (for testing)
   Future<void> clearData() async {

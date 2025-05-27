@@ -75,6 +75,21 @@ class _SettingsPageState extends State<SettingsPage> {  @override
                   ),
                   
                   const Divider(),
+
+                  // Force Scrape Market Data
+                  ListTile(
+                    leading: Icon(
+                      Icons.download_for_offline_outlined, // Or Icons.cloud_download, Icons.update
+                      color: theme.colorScheme.primary,
+                    ),
+                    title: const Text('Force Scrape Market Data'),
+                    subtitle: const Text('Bypass date checks and fetch latest share prices'),
+                    onTap: () {
+                      _forceScrapeMarketData(context);
+                    },
+                  ),
+                  
+                  const Divider(),
                   
                   // Clear All Data
                   ListTile(
@@ -250,6 +265,32 @@ class _SettingsPageState extends State<SettingsPage> {  @override
         );
       }
     }
+  }
+
+  void _forceScrapeMarketData(BuildContext context) {
+    final portfolioProvider = Provider.of<PortfolioProvider>(context, listen: false);
+    
+    // Show a loading indicator or a SnackBar
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Force scraping market data...'), duration: Duration(seconds: 2)),
+    );
+
+    portfolioProvider.forceRefreshShareData().then((_) {
+      // Check for errors from the provider
+      if (portfolioProvider.shareDataError != null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error scraping data: ${portfolioProvider.shareDataError}')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Market data updated successfully!')),
+        );
+      }
+    }).catchError((error) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to initiate force scrape: $error')),
+      );
+    });
   }
 
   void _showClearDataDialog(BuildContext context) {
